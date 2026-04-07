@@ -80,6 +80,8 @@ if 'show_step2_result' not in st.session_state:
     st.session_state.show_step2_result = False
 if 'step2_result' not in st.session_state:
     st.session_state.step2_result = None
+if 'attempts' not in st.session_state:
+    st.session_state.attempts = 0
 
 # Title
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -146,6 +148,7 @@ if st.session_state.step == 1:
                 st.session_state.amount = amount
                 st.session_state.show_step1_form = False
                 st.session_state.show_step1_result = True
+                st.session_state.attempts = 0
                 st.rerun()
     
     # Show security question
@@ -157,38 +160,84 @@ if st.session_state.step == 1:
         
         st.markdown("### ❓ Security Verification Question")
         
-        # Questions database
+        # Questions with EXACT correct answers (case-insensitive)
         questions = {
-            "What is your wedding anniversary? (e.g., May 10)": "May 10",
-            "What is your eldest child's birth month?": "May",
-            "What year did you open your first bank account?": "1995",
-            "What is your mother's maiden name?": "Smith",
-            "What was your first pet's name?": "Lucky"
+            "What is your wedding anniversary? (e.g., May 10)": {
+                "correct": "may 10",
+                "aliases": ["may 10", "may 10th", "10 may", "may tenth"]
+            },
+            "What is your eldest child's birth month?": {
+                "correct": "may",
+                "aliases": ["may", "may."]
+            },
+            "What year did you open your first bank account?": {
+                "correct": "1995",
+                "aliases": ["1995", "1995."]
+            },
+            "What is your mother's maiden name?": {
+                "correct": "smith",
+                "aliases": ["smith", "smith."]
+            },
+            "What was your first pet's name?": {
+                "correct": "lucky",
+                "aliases": ["lucky", "lucky."]
+            },
+            "What is your favorite color?": {
+                "correct": "blue",
+                "aliases": ["blue", "blue."]
+            },
+            "What street did you grow up on?": {
+                "correct": "main street",
+                "aliases": ["main street", "main st", "main"]
+            },
+            "What was your first school name?": {
+                "correct": "central elementary",
+                "aliases": ["central elementary", "central", "central elementary school"]
+            }
         }
         
-        question = random.choice(list(questions.keys()))
-        correct_answer = questions[question]
+        # Randomly select a question
+        if 'current_question' not in st.session_state:
+            question_text = random.choice(list(questions.keys()))
+            st.session_state.current_question = question_text
+            st.session_state.correct_answer = questions[question_text]["correct"]
+            st.session_state.answer_aliases = questions[question_text]["aliases"]
         
-        # Store in session for verification
-        st.session_state.current_question = question
-        st.session_state.correct_answer = correct_answer
+        st.markdown(f"**📌 {st.session_state.current_question}**")
+        answer = st.text_input("Your answer:", key="security_answer", placeholder="Type your answer here...")
         
-        st.markdown(f"**📌 {question}**")
-        answer = st.text_input("Your answer:", key="security_answer")
+        # Show remaining attempts
+        attempts_left = 3 - st.session_state.attempts
+        st.caption(f"⚠️ Attempts remaining: {attempts_left}")
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ Verify Identity", type="primary"):
-                if answer and answer.lower().strip() == correct_answer.lower():
-                    st.session_state.step1_result = "passed"
-                    st.session_state.show_step1_result = False
-                    st.rerun()
+                if answer:
+                    user_answer = answer.lower().strip()
+                    
+                    # Check if answer matches correct answer or any alias
+                    is_correct = (user_answer == st.session_state.correct_answer or 
+                                  user_answer in st.session_state.answer_aliases)
+                    
+                    if is_correct:
+                        st.session_state.step1_result = "passed"
+                        st.session_state.show_step1_result = False
+                        st.rerun()
+                    else:
+                        st.session_state.attempts += 1
+                        if st.session_state.attempts >= 3:
+                            st.session_state.step1_result = "failed_max"
+                            st.session_state.show_step1_result = False
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Incorrect answer! You have {3 - st.session_state.attempts} attempts remaining.")
+                            st.rerun()
                 else:
-                    st.session_state.step1_result = "failed"
-                    st.session_state.show_step1_result = False
-                    st.rerun()
+                    st.warning("⚠️ Please enter an answer")
+        
         with col2:
-            if st.button("❌ Cancel"):
+            if st.button("❌ Cancel Transaction"):
                 st.session_state.step1_result = "cancelled"
                 st.session_state.show_step1_result = False
                 st.rerun()
@@ -201,25 +250,28 @@ if st.session_state.step == 1:
             <p>Identity confirmed successfully. Moving to Step 2...</p>
         </div>
         """, unsafe_allow_html=True)
-        # Use JavaScript redirect
-        st.markdown('<meta http-equiv="refresh" content="1">', unsafe_allow_html=True)
         st.session_state.step = 2
         st.session_state.show_step2_form = True
         st.session_state.step1_result = None
-        time.sleep(0.5)
+        # Clear stored question
+        if 'current_question' in st.session_state:
+            del st.session_state.current_question
+        time.sleep(1)
         st.rerun()
         
-    elif st.session_state.step1_result == "failed":
+    elif st.session_state.step1_result == "failed_max":
         st.markdown("""
         <div class="error-box">
-            <h3>❌ Verification Failed!</h3>
-            <p>Incorrect answer. Transaction has been cancelled for your security.</p>
-            <p>⚠️ Please try again.</p>
+            <h3>❌ Verification Failed - Too Many Attempts!</h3>
+            <p>You have exceeded the maximum number of attempts (3).</p>
+            <p>⚠️ Your transaction has been cancelled for security reasons.</p>
+            <p>Please contact your bank if you believe this is an error.</p>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("🔄 Try Again", type="primary"):
-            st.session_state.step1_result = None
-            st.session_state.show_step1_form = True
+        if st.button("🔄 Start Over", type="primary"):
+            # Reset all states
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
             
     elif st.session_state.step1_result == "cancelled":
@@ -230,8 +282,8 @@ if st.session_state.step == 1:
         </div>
         """, unsafe_allow_html=True)
         if st.button("🔄 New Transaction", type="primary"):
-            st.session_state.step1_result = None
-            st.session_state.show_step1_form = True
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
 
 # ========== STEP 2: CareCircle Alert ==========
@@ -306,7 +358,7 @@ elif st.session_state.step == 2:
         """, unsafe_allow_html=True)
         st.session_state.step = 3
         st.session_state.step2_result = None
-        time.sleep(0.5)
+        time.sleep(1)
         st.rerun()
         
     elif st.session_state.step2_result == "rejected":
@@ -331,7 +383,7 @@ elif st.session_state.step == 2:
         """, unsafe_allow_html=True)
         st.session_state.step = 3
         st.session_state.step2_result = None
-        time.sleep(0.5)
+        time.sleep(1)
         st.rerun()
 
 # ========== STEP 3: Cooling Period ==========
