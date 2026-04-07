@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 # Page setup
 st.set_page_config(page_title="Senior Shield Mode", page_icon="🛡️", layout="wide")
 
-# Custom CSS for better styling
+# Custom CSS
 st.markdown("""
 <style>
     .success-box {
@@ -68,18 +68,20 @@ if 'amount' not in st.session_state:
     st.session_state.amount = 0
 if 'recipient' not in st.session_state:
     st.session_state.recipient = ""
-if 'knowledge_passed' not in st.session_state:
-    st.session_state.knowledge_passed = False
-if 'knowledge_failed' not in st.session_state:
-    st.session_state.knowledge_failed = False
-if 'family_approved' not in st.session_state:
-    st.session_state.family_approved = False
-if 'family_rejected' not in st.session_state:
-    st.session_state.family_rejected = False
-if 'auto_redirect' not in st.session_state:
-    st.session_state.auto_redirect = False
+if 'show_step1_form' not in st.session_state:
+    st.session_state.show_step1_form = True
+if 'show_step1_result' not in st.session_state:
+    st.session_state.show_step1_result = False
+if 'step1_result' not in st.session_state:
+    st.session_state.step1_result = None
+if 'show_step2_form' not in st.session_state:
+    st.session_state.show_step2_form = False
+if 'show_step2_result' not in st.session_state:
+    st.session_state.show_step2_result = False
+if 'step2_result' not in st.session_state:
+    st.session_state.step2_result = None
 
-# Title with logo
+# Title
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.image("https://img.icons8.com/color/96/000000/elderly.png", width=80)
@@ -121,187 +123,216 @@ st.markdown("---")
 
 # ========== STEP 1: Knowledge Check ==========
 if st.session_state.step == 1:
-    st.subheader("🔐 Step 1: Security Verification")
-    st.caption("Personalized security question - Only you know the answer")
     
-    # Transaction form
-    with st.form("transaction_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            recipient = st.text_input("👤 Recipient Name", placeholder="Enter recipient's full name")
-        with col2:
-            amount = st.number_input("💰 Amount (HKD)", min_value=100, max_value=500000, value=10000, step=1000)
+    # Show form
+    if st.session_state.show_step1_form:
+        st.subheader("🔐 Step 1: Security Verification")
+        st.caption("Personalized security question - Only you know the answer")
         
-        submitted = st.form_submit_button("📝 Review Transaction", type="primary", use_container_width=True)
-    
-    if submitted:
-        if not recipient:
-            st.error("❌ Please enter recipient name")
-        else:
-            st.session_state.recipient = recipient
-            st.session_state.amount = amount
-            
-            # Show transaction summary
-            st.info(f"📋 Transaction Summary: Transfer HKD {amount:,} to {recipient}")
-            
-            # Security question
-            st.markdown("---")
-            st.markdown("### ❓ Security Verification Question")
-            
-            # Questions database
-            questions = {
-                "What is your wedding anniversary? (e.g., May 10)": "May 10",
-                "What is your eldest child's birth month?": "May",
-                "What year did you open your first bank account?": "1995",
-                "What is your mother's maiden name?": "Smith",
-                "What was your first pet's name?": "Lucky"
-            }
-            
-            question = random.choice(list(questions.keys()))
-            correct_answer = questions[question]
-            
-            st.markdown(f"**📌 {question}**")
-            answer = st.text_input("Your answer:", key="security_answer")
-            
+        with st.form("transaction_form"):
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("✅ Verify Identity", type="primary"):
-                    if answer and answer.lower().strip() == correct_answer.lower():
-                        # Show success message
-                        st.markdown("""
-                        <div class="success-box">
-                            <h3>✅ Verification Passed!</h3>
-                            <p>Identity confirmed successfully. Redirecting to Step 2...</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        st.session_state.knowledge_passed = True
-                        st.session_state.step = 2
-                        time.sleep(1.5)
-                        st.rerun()
-                    else:
-                        # Show failure message
-                        st.markdown("""
-                        <div class="error-box">
-                            <h3>❌ Verification Failed!</h3>
-                            <p>Incorrect answer. Transaction has been cancelled for your security.</p>
-                            <p>⚠️ Please contact your bank if you believe this is an error.</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        st.session_state.knowledge_failed = True
-                        time.sleep(3)
-                        # Reset form
-                        st.session_state.step = 1
-                        st.rerun()
+                recipient = st.text_input("👤 Recipient Name", placeholder="Enter recipient's full name")
             with col2:
-                if st.button("❌ Cancel Transaction"):
-                    st.markdown("""
-                    <div class="warning-box">
-                        <h3>⏸️ Transaction Cancelled</h3>
-                        <p>You have cancelled this transaction.</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    time.sleep(1.5)
+                amount = st.number_input("💰 Amount (HKD)", min_value=100, max_value=500000, value=10000, step=1000)
+            
+            submitted = st.form_submit_button("📝 Review Transaction", type="primary", use_container_width=True)
+        
+        if submitted:
+            if not recipient:
+                st.error("❌ Please enter recipient name")
+            else:
+                st.session_state.recipient = recipient
+                st.session_state.amount = amount
+                st.session_state.show_step1_form = False
+                st.session_state.show_step1_result = True
+                st.rerun()
+    
+    # Show security question
+    elif st.session_state.show_step1_result:
+        st.subheader("🔐 Step 1: Security Verification")
+        
+        # Show transaction summary
+        st.info(f"📋 Transaction Summary: Transfer HKD {st.session_state.amount:,} to {st.session_state.recipient}")
+        
+        st.markdown("### ❓ Security Verification Question")
+        
+        # Questions database
+        questions = {
+            "What is your wedding anniversary? (e.g., May 10)": "May 10",
+            "What is your eldest child's birth month?": "May",
+            "What year did you open your first bank account?": "1995",
+            "What is your mother's maiden name?": "Smith",
+            "What was your first pet's name?": "Lucky"
+        }
+        
+        question = random.choice(list(questions.keys()))
+        correct_answer = questions[question]
+        
+        # Store in session for verification
+        st.session_state.current_question = question
+        st.session_state.correct_answer = correct_answer
+        
+        st.markdown(f"**📌 {question}**")
+        answer = st.text_input("Your answer:", key="security_answer")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Verify Identity", type="primary"):
+                if answer and answer.lower().strip() == correct_answer.lower():
+                    st.session_state.step1_result = "passed"
+                    st.session_state.show_step1_result = False
                     st.rerun()
+                else:
+                    st.session_state.step1_result = "failed"
+                    st.session_state.show_step1_result = False
+                    st.rerun()
+        with col2:
+            if st.button("❌ Cancel"):
+                st.session_state.step1_result = "cancelled"
+                st.session_state.show_step1_result = False
+                st.rerun()
+    
+    # Show result and redirect
+    elif st.session_state.step1_result == "passed":
+        st.markdown("""
+        <div class="success-box">
+            <h3>✅ Verification Passed!</h3>
+            <p>Identity confirmed successfully. Moving to Step 2...</p>
+        </div>
+        """, unsafe_allow_html=True)
+        # Use JavaScript redirect
+        st.markdown('<meta http-equiv="refresh" content="1">', unsafe_allow_html=True)
+        st.session_state.step = 2
+        st.session_state.show_step2_form = True
+        st.session_state.step1_result = None
+        time.sleep(0.5)
+        st.rerun()
+        
+    elif st.session_state.step1_result == "failed":
+        st.markdown("""
+        <div class="error-box">
+            <h3>❌ Verification Failed!</h3>
+            <p>Incorrect answer. Transaction has been cancelled for your security.</p>
+            <p>⚠️ Please try again.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 Try Again", type="primary"):
+            st.session_state.step1_result = None
+            st.session_state.show_step1_form = True
+            st.rerun()
+            
+    elif st.session_state.step1_result == "cancelled":
+        st.markdown("""
+        <div class="warning-box">
+            <h3>⏸️ Transaction Cancelled</h3>
+            <p>You have cancelled this transaction.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 New Transaction", type="primary"):
+            st.session_state.step1_result = None
+            st.session_state.show_step1_form = True
+            st.rerun()
 
 # ========== STEP 2: CareCircle Alert ==========
 elif st.session_state.step == 2:
-    st.subheader("👨‍👩‍👧 Step 2: CareCircle Alert")
-    st.caption("Family verification for large transfers")
     
-    # Check if amount exceeds limit
-    if st.session_state.amount > 10000:
-        st.markdown(f"""
-        <div class="warning-box">
-            <h3>⚠️ Large Transfer Detected</h3>
-            <p>Amount: <strong>HKD {st.session_state.amount:,}</strong> exceeds preset limit <strong>HKD 10,000</strong></p>
-            <p>CareCircle protection activated automatically.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    if st.session_state.show_step2_form:
+        st.subheader("👨‍👩‍👧 Step 2: CareCircle Alert")
+        st.caption("Family verification for large transfers")
         
-        st.info("📱 Sending SMS alerts to family members...")
-        
-        # Show sent alerts with animation
-        with st.spinner("Sending alerts..."):
-            time.sleep(1)
-        
-        st.markdown("**✅ Alerts sent to:**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.success("👨 David Chen (Son)\n+852 9123 4567")
-        with col2:
-            st.success("👩 Lisa Chen (Daughter)\n+852 9234 5678")
-        with col3:
-            st.success("👵 Mary Chen (Spouse)\n+852 9345 6789")
-        
-        st.markdown("---")
-        st.markdown("### 👪 Family Confirmation Required")
-        
-        # Family approval options
-        approval = st.radio(
-            "Family member response:",
-            ["⏳ Waiting for response...", "✅ Approved - Family confirmed", "❌ Rejected - Family denied"],
-            index=0,
-            horizontal=True
-        )
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📞 Call Family Member", use_container_width=True):
-                st.info("📱 Dialing: +852 9123 4567 (David Chen)")
-        with col2:
-            if st.button("💬 Resend Alert", use_container_width=True):
-                st.success("✅ Alert resent to all family members")
-        
-        st.markdown("---")
-        
-        # Submit confirmation
-        if st.button("✅ Submit Family Confirmation", type="primary", use_container_width=True):
-            if "Approved" in approval:
-                st.markdown("""
-                <div class="success-box">
-                    <h3>✅ Family Approved!</h3>
-                    <p>Transaction has been approved by family members. Redirecting to cooling period...</p>
-                </div>
-                """, unsafe_allow_html=True)
-                st.session_state.family_approved = True
-                st.session_state.step = 3
-                time.sleep(1.5)
+        if st.session_state.amount > 10000:
+            st.markdown(f"""
+            <div class="warning-box">
+                <h3>⚠️ Large Transfer Detected</h3>
+                <p>Amount: <strong>HKD {st.session_state.amount:,}</strong> exceeds preset limit <strong>HKD 10,000</strong></p>
+                <p>CareCircle protection activated automatically.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.spinner("📱 Sending SMS alerts to family members..."):
+                time.sleep(1)
+            
+            st.markdown("**✅ Alerts sent to:**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.success("👨 David Chen (Son)\n+852 9123 4567")
+            with col2:
+                st.success("👩 Lisa Chen (Daughter)\n+852 9234 5678")
+            with col3:
+                st.success("👵 Mary Chen (Spouse)\n+852 9345 6789")
+            
+            st.markdown("---")
+            st.markdown("### 👪 Family Confirmation Required")
+            
+            approval = st.radio(
+                "Family member response:",
+                ["✅ Approved - Family confirmed", "❌ Rejected - Family denied"],
+                index=None,
+                horizontal=True
+            )
+            
+            if st.button("✅ Submit Family Confirmation", type="primary", use_container_width=True):
+                if approval == "✅ Approved - Family confirmed":
+                    st.session_state.step2_result = "approved"
+                    st.session_state.show_step2_form = False
+                    st.rerun()
+                elif approval == "❌ Rejected - Family denied":
+                    st.session_state.step2_result = "rejected"
+                    st.session_state.show_step2_form = False
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Please select an option")
+        else:
+            st.markdown(f"""
+            <div class="success-box">
+                <h3>✅ Amount Below Limit</h3>
+                <p>Transfer amount <strong>HKD {st.session_state.amount:,}</strong> is below the HKD 10,000 limit.</p>
+                <p>CareCircle alert is not required for this transaction.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("➡️ Continue to Cooling Period", type="primary", use_container_width=True):
+                st.session_state.step2_result = "skipped"
+                st.session_state.show_step2_form = False
                 st.rerun()
-            elif "Rejected" in approval:
-                st.markdown("""
-                <div class="error-box">
-                    <h3>❌ Transaction Rejected by Family</h3>
-                    <p>Family members have rejected this transaction. The transfer has been cancelled.</p>
-                    <p>Please contact your family before initiating another transfer.</p>
-                </div>
-                """, unsafe_allow_html=True)
-                st.session_state.family_rejected = True
-                time.sleep(3)
-                # Reset to step 1
-                for key in ['step', 'knowledge_passed', 'knowledge_failed', 'family_approved', 'family_rejected']:
-                    if key in st.session_state:
-                        if key == 'step':
-                            st.session_state.step = 1
-                        else:
-                            st.session_state[key] = False
-                st.rerun()
-            else:
-                st.warning("⚠️ Please wait for family response or contact them directly.")
-    else:
-        # Amount below limit - skip CareCircle
-        st.markdown(f"""
+    
+    elif st.session_state.step2_result == "approved":
+        st.markdown("""
         <div class="success-box">
-            <h3>✅ Amount Below Limit</h3>
-            <p>Transfer amount <strong>HKD {st.session_state.amount:,}</strong> is below the HKD 10,000 limit.</p>
-            <p>CareCircle alert is not required for this transaction.</p>
+            <h3>✅ Family Approved!</h3>
+            <p>Transaction has been approved by family members. Moving to cooling period...</p>
         </div>
         """, unsafe_allow_html=True)
+        st.session_state.step = 3
+        st.session_state.step2_result = None
+        time.sleep(0.5)
+        st.rerun()
         
-        if st.button("➡️ Continue to Cooling Period", type="primary", use_container_width=True):
-            st.session_state.family_approved = True
-            st.session_state.step = 3
-            time.sleep(0.5)
+    elif st.session_state.step2_result == "rejected":
+        st.markdown("""
+        <div class="error-box">
+            <h3>❌ Transaction Rejected by Family</h3>
+            <p>Family members have rejected this transaction.</p>
+            <p>Please contact your family before initiating another transfer.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 Start Over", type="primary"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
+            
+    elif st.session_state.step2_result == "skipped":
+        st.markdown("""
+        <div class="success-box">
+            <h3>✅ Proceeding to Cooling Period</h3>
+            <p>Moving to Step 3...</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.session_state.step = 3
+        st.session_state.step2_result = None
+        time.sleep(0.5)
+        st.rerun()
 
 # ========== STEP 3: Cooling Period ==========
 elif st.session_state.step == 3:
@@ -338,7 +369,6 @@ elif st.session_state.step == 3:
         minutes = int((remaining.total_seconds() % 3600) // 60)
         seconds = int(remaining.total_seconds() % 60)
         
-        # Display timer prominently
         st.markdown(f"""
         <div style="text-align: center; padding: 20px; background: #1E3A8A; border-radius: 15px; margin: 20px 0;">
             <h2 style="color: white;">⏰ Time Remaining</h2>
@@ -347,7 +377,6 @@ elif st.session_state.step == 3:
         </div>
         """, unsafe_allow_html=True)
         
-        # Progress bar
         total = 2 * 60 * 60
         elapsed = total - remaining.total_seconds()
         progress = elapsed / total
@@ -357,7 +386,6 @@ elif st.session_state.step == 3:
         
         st.markdown("---")
         
-        # Cancel button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("❌ Cancel Transaction", type="secondary", use_container_width=True):
@@ -365,27 +393,22 @@ elif st.session_state.step == 3:
                 <div class="success-box">
                     <h3>✅ Transaction Cancelled</h3>
                     <p>Your transaction has been successfully cancelled.</p>
-                    <p>No funds have been transferred.</p>
                 </div>
                 """, unsafe_allow_html=True)
-                # Reset all states
                 for key in list(st.session_state.keys()):
                     del st.session_state[key]
-                time.sleep(2)
+                time.sleep(1)
                 st.rerun()
         
-        # Auto-refresh timer (every 1 second)
+        # Auto refresh every second
         time.sleep(1)
         st.rerun()
         
     else:
-        # Cooling period complete
         st.markdown("""
         <div class="success-box">
             <h1>✅ Transaction Completed Successfully! 🎉</h1>
             <p>The cooling period has ended. Your transaction has been processed.</p>
-            <hr>
-            <h3>📊 Transaction Summary</h3>
         </div>
         """, unsafe_allow_html=True)
         
@@ -408,8 +431,7 @@ elif st.session_state.step == 3:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #6B7280; font-size: 12px;">
-    <p>🛡️ Senior Shield Mode | Three-Layer Protection: Knowledge Check → CareCircle Alert → Cooling Period</p>
-    <p>Emergency Hotline: 18222 (ADCC) | Bank Support: 2233 3000</p>
-    <p>© 2024 Senior Shield Technologies | All Rights Reserved</p>
+    <p>🛡️ Senior Shield Mode | Emergency Hotline: 18222 (ADCC)</p>
+    <p>© 2024 Senior Shield Technologies</p>
 </div>
 """, unsafe_allow_html=True)
